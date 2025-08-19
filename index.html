@@ -20,8 +20,21 @@
   .hdr-right{display:flex;align-items:center;gap:8px}
   .btn{display:inline-block;padding:8px 12px;border-radius:10px;font:700 12px/1 ui-sans-serif;text-decoration:none;background:var(--btn);color:var(--btnText)}
   .btn.secondary{background:var(--btn2);color:var(--btn2Text)}
-  .stage{position:relative}
-  canvas{display:block;width:100%;height:auto;border-radius:12px;background:#fff;box-shadow:0 2px 20px rgba(0,0,0,.06)}
+.stage{
+  position:relative;
+  background:#fff;                 /* fundo branco na caixa do jogo */
+  border-radius:12px;              /* cantos arredondados da caixa */
+  box-shadow:0 2px 20px rgba(0,0,0,.06);
+  padding:8px 8px 0;               /* espaço para a HUD dentro da caixa */
+  overflow:hidden;                 /* recorta tudo ao raio da borda */
+}
+canvas{
+  display:block;width:100%;height:auto;
+  background:transparent;          /* canvas transparente agora */
+  border-radius:0;                 /* borda fica no .stage */
+}
+body.night .stage{ background:#11121a }  /* modo noite mantém igual */
+
   .hud{position:absolute;right:12px;top:8px;font:700 16px/1 ui-monospace,Menlo,Consolas;color:#444;user-select:none;display:flex;gap:8px}
   .tag{font:700 11px/1 ui-monospace;background:rgba(0,0,0,.06);padding:4px 6px;border-radius:8px}
   body.night{background:var(--night);color:var(--ink-night)}
