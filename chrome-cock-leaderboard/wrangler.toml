@@ -1,0 +1,9 @@
+name = "chrome-cock-leaderboard"
+main = "src/worker.js"
+compatibility_date = "2024-11-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cock-leaderboard"
+database_id = "961b309b-d989-4fef-8936-6bba5b138687"
+

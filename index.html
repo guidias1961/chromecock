@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chrome Cock $cCOCK — Peacock Dino</title>
+<meta name="description" content="Chrome Dino style runner with a black pixel peacock. Name entry and live Cloudflare D1 leaderboard." />
+<style>
+  :root{
+    --day:#f7f7f7; --night:#0b0b10; --ink:#111; --ink-night:#e8e8e8;
+    --panel:#fff; --panel-night:#11121a; --muted:#666;
+    --btn:#111; --btnText:#fff; --btn2:#222; --btn2Text:#eaeaea;
+  }
+  html,body{height:100%;margin:0}
+  body{background:var(--day);color:var(--ink);font:14px/1 ui-sans-serif,system-ui}
+  .wrap{max-width:1100px;margin:0 auto;padding:12px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  h1{margin:0;font-size:16px}
+  .hint{opacity:.8;font-size:12px}
+  .hdr-right{display:flex;align-items:center;gap:8px}
+  .btn{display:inline-block;padding:8px 12px;border-radius:10px;font:700 12px/1 ui-sans-serif;text-decoration:none;background:var(--btn);color:var(--btnText)}
+  .btn.secondary{background:var(--btn2);color:var(--btn2Text)}
+  .stage{position:relative}
+  canvas{display:block;width:100%;height:auto;border-radius:12px;background:#fff;box-shadow:0 2px 20px rgba(0,0,0,.06)}
+  .hud{position:absolute;right:12px;top:8px;font:700 16px/1 ui-monospace,Menlo,Consolas;color:#444;user-select:none;display:flex;gap:8px}
+  .tag{font:700 11px/1 ui-monospace;background:rgba(0,0,0,.06);padding:4px 6px;border-radius:8px}
+  body.night{background:var(--night);color:var(--ink-night)}
+  body.night canvas{background:var(--panel-night)}
+  body.night .hud{color:#e8e8e8}
+  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+  .overlay .card{pointer-events:auto;background:rgba(255,255,255,.95);color:#111;padding:16px 18px;border-radius:12px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center;max-width:360px}
+  .note{margin-top:6px;opacity:.7;font-size:12px}
+
+  .name-form{display:flex;flex-direction:column;gap:10px}
+  .name-form input{padding:10px 12px;border:1px solid #ccc;border-radius:10px;font:600 14px/1.2 ui-sans-serif}
+  .name-form button{padding:10px 12px;border:0;border-radius:10px;background:#111;color:#fff;font:700 14px/1 ui-sans-serif;cursor:pointer}
+  .name-form .tip{font:12px/1.2 ui-sans-serif;opacity:.7}
+
+  .board{margin-top:12px;background:var(--panel);border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.06);overflow:hidden}
+  body.night .board{background:var(--panel-night)}
+  .board header{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center}
+  body.night .board header{border-color:rgba(255,255,255,.08)}
+  .board h2{margin:0;font-size:14px}
+  .board small{opacity:.7}
+  .board ol{list-style:none;margin:0;padding:0}
+  .board li{display:grid;grid-template-columns:32px 1fr 90px;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid rgba(0,0,0,.06)}
+  .board li:first-child{border-top:0}
+  body.night .board li{border-color:rgba(255,255,255,.07)}
+  .rank{font:700 12px/1 ui-monospace}
+  .pname{font:700 13px/1.1 ui-sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pscore{font:700 13px/1 ui-monospace;text-align:right}
+  .me{background:rgba(0,170,255,.10)}
+  @media (max-width:640px){ .overlay .card{font-size:14px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Chrome Cock $cCOCK</h1>
+      <div class="hint">Space or tap to jump. Arrow Down or tap bottom to duck.</div>
+    </div>
+    <div class="hdr-right">
+      <a class="btn secondary" href="https://x.com/cockscreener" target="_blank" rel="noopener">Twitter</a>
+      <a class="btn" href="https://pump.tires" target="_blank" rel="noopener">Buy</a>
+    </div>
+  </header>
+
+  <div class="stage">
+    <canvas id="cv" width="960" height="280" aria-label="Chrome Cock canvas"></canvas>
+    <div class="hud">
+      <span id="playerTag" class="tag">player: -</span>
+      <span id="hi">HI 00000</span>
+      <span id="sc">00000</span>
+    </div>
+  </div>
+
+  <div class="board" id="board">
+    <header>
+      <h2>Leaderboard</h2>
+      <small>Top 10, refreshes every 5s</small>
+    </header>
+    <ol id="lb"></ol>
+  </div>
+
+  <div class="note">Chrome Dino style. Pixel black peacock. Scores saved to Cloudflare D1.</div>
+</div>
+
+<!-- Name overlay -->
+<div class="overlay" id="nameOL">
+  <div class="card">
+    <div style="font-size:16px;margin-bottom:8px">Choose your player name</div>
+    <form class="name-form" id="nameForm">
+      <input id="nameInput" maxlength="16" placeholder="3 to 16 chars [A Z, 0 9, _]" autocomplete="off" />
+      <button type="submit">Save and start</button>
+      <div class="tip">Leaderboard keeps your best score</div>
+    </form>
+  </div>
+</div>
+
+<!-- Message overlay -->
+<div class="overlay" id="ol"><div class="card" id="msg">Tap or press Space to start</div></div>
+
+<script>
+(() => {
+  // 1) Replace with your Worker URL
+  const API_BASE = "https://chrome-cock-leaderboard.bongoapi.workers.dev";
+
+  // 2) Basic DOM
+  const cv = document.getElementById('cv');
+  const ct = cv.getContext('2d');
+  ct.imageSmoothingEnabled = false;
+  const ol = document.getElementById('ol');
+  const msg = document.getElementById('msg');
+  const scEl = document.getElementById('sc');
+  const hiEl = document.getElementById('hi');
+  const lbEl = document.getElementById('lb');
+  const playerTag = document.getElementById('playerTag');
+
+  const nameOL = document.getElementById('nameOL');
+  const nameForm = document.getElementById('nameForm');
+  const nameInput = document.getElementById('nameInput');
+
+  // 3) Name handling
+  let playerName = localStorage.getItem('cockrunner.name') || "";
+  function validName(n){ return /^[A-Za-z0-9_]{3,16}$/.test(n); }
+  function setPlayerName(n){
+    playerName = n;
+    localStorage.setItem('cockrunner.name', n);
+    playerTag.textContent = "player: " + n;
+  }
+  if (!validName(playerName)) nameOL.style.display = 'flex'; else setPlayerName(playerName);
+
+  nameForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const n = nameInput.value.trim();
+    if (!validName(n)){ alert("Only A Z, 0 9 and underscore, length 3..16"); return; }
+    setPlayerName(n);
+    nameOL.style.display = 'none';
+    ol.style.display = 'flex';
+  });
+
+  // 4) Responsive canvas
+  let scale = 1;
+  function resize(){
+    const targetH = Math.max(180, Math.min(320, Math.round(innerHeight*0.32)));
+    const ratio = 960/280;
+    const h = targetH, w = Math.min(Math.round(h*ratio), 1100);
+    const dpr = Math.min(2, devicePixelRatio||1);
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    scale = cv.height / 280;
+    ct.imageSmoothingEnabled = false;
+  }
+  addEventListener('resize', resize, {passive:true}); resize();
+
+  // 5) Game constants
+  const GROUND_Y = 240;
+  const GRAVITY = 0.6;
+  const JUMP_VY = -12;
+  const DROP_ACCEL = 1.15;
+  const SPEED_START = 6;
+  const SPEED_MAX   = 13.5;
+  const SCORE_PING  = 100;
+  const NIGHT_EVERY = 700;
+
+  // 6) Audio
+  const AC = window.AudioContext ? new AudioContext() : null;
+  const beep = (f=880, dur=0.07, g=0.035) => {
+    if (!AC) return;
+    const o = AC.createOscillator(), gn = AC.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    gn.gain.value = g; o.connect(gn); gn.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  };
+
+  // 7) Game state
+  const STATE = {WAIT:0, PLAY:1, DEAD:2};
+  let state = STATE.WAIT;
+  let speed = SPEED_START, dist = 0, score = 0, lastHundreds = 0;
+  let isNight = false, nightFade = 0;
+
+  // HI local
+  let HI = Number(localStorage.getItem('cockrunner.hi') || 0);
+  const setHI = v => { HI = Math.max(HI, v); localStorage.setItem('cockrunner.hi', HI); hiEl.textContent = `HI ${HI.toString().padStart(5,'0')}`; };
+  setHI(HI);
+
+  // World arrays
+  const clouds = [];
+  const ground = [];
+  const obs = [];
+
+  // spawn control
+  let gapLeft = 140;
+  let birdCooldown = 0;
+  function nextGap(){
+    const min = 160 + speed*18;
+    const extra = 100 + Math.random()*140;
+    return min + extra;
+  }
+
+  // Player
+  const player = {
+    x: 72, y: 0, vy: 0, onGround: true, duck: false, anim: 0,
+    wRun: 44, hRun: 48, wDuck: 58, hDuck: 30,
+    get w(){ return this.duck && this.onGround ? this.wDuck : this.wRun; },
+    get h(){ return this.duck && this.onGround ? this.hDuck : this.hRun; }
+  };
+
+  // Pixel helper
+  function Px(x,y,s=1){
+    const X = Math.round((x)*scale), Y = Math.round((y)*scale), S = Math.round(s*scale);
+    ct.fillRect(X, Y, S, S);
+  }
+
+  function drawPeacock(px){
+    const baseX = px.x, baseY = px.y + px.h;
+    ct.save();
+    ct.fillStyle = isNight ? '#eaeaea' : '#111';
+    const duck = px.duck && px.onGround;
+    const f = (px.anim|0)%2;
+
+    if (!duck){
+      for(let i=0;i<14;i++) Px(baseX+6+i, baseY-30, 2);
+      for(let i=0;i<18;i++) Px(baseX+4+i, baseY-28, 2);
+      for(let i=0;i<20;i++) Px(baseX+3+i, baseY-26, 2);
+      for(let i=0;i<20;i++) Px(baseX+3+i, baseY-24, 2);
+      for(let i=0;i<18;i++) Px(baseX+4+i, baseY-22, 2);
+      for(let i=0;i<14;i++) Px(baseX+6+i, baseY-20, 2);
+      for(let j=0;j<8;j++) Px(baseX+22, baseY-34+j, 2);
+      for(let j=0;j<6;j++) Px(baseX+24, baseY-36+j, 2);
+      for(let i=0;i<6;i++) Px(baseX+28+i, baseY-40, 2);
+      for(let i=0;i<8;i++) Px(baseX+27+i, baseY-38, 2);
+      for(let i=0;i<8;i++) Px(baseX+27+i, baseY-36, 2);
+      Px(baseX+35, baseY-37, 2); Px(baseX+36, baseY-36, 2); Px(baseX+37, baseY-35, 2);
+      Px(baseX+30, baseY-44, 2); Px(baseX+29, baseY-45, 2);
+      ct.save(); ct.fillStyle = isNight ? '#111' : '#fff'; Px(baseX+31, baseY-38, 2); ct.restore();
+
+      if (px.onGround){
+        if (f===0){ Px(baseX+10, baseY-4, 2); Px(baseX+10, baseY-2, 2); Px(baseX+8, baseY, 2);
+                    Px(baseX+14, baseY-4, 2); Px(baseX+16, baseY-2, 2); Px(baseX+18, baseY, 2); }
+        else {     Px(baseX+10, baseY-4, 2); Px(baseX+12, baseY-2, 2); Px(baseX+14, baseY, 2);
+                    Px(baseX+16, baseY-4, 2); Px(baseX+14, baseY-2, 2); Px(baseX+12, baseY, 2); }
+      } else {
+        Px(baseX+12, baseY-2, 2); Px(baseX+10, baseY, 2);
+        Px(baseX+16, baseY-2, 2); Px(baseX+18, baseY, 2);
+      }
+      for(let k=0;k<7;k++){
+        Px(baseX-2-k, baseY-22-k, 2);
+        if (k%2===0) Px(baseX-2-k, baseY-24-k, 2);
+      }
+    } else {
+      for(let i=0;i<24;i++) Px(baseX+4+i, baseY-18, 2);
+      for(let i=0;i<28;i++) Px(baseX+2+i, baseY-16, 2);
+      for(let i=0;i<30;i++) Px(baseX+1+i, baseY-14, 2);
+      for(let i=0;i<30;i++) Px(baseX+1+i, baseY-12, 2);
+      for(let i=0;i<28;i++) Px(baseX+2+i, baseY-10, 2);
+      for(let i=0;i<8;i++) Px(baseX+28+i, baseY-14, 2);
+      for(let i=0;i<6;i++) Px(baseX+34+i, baseY-16, 2);
+      for(let i=0;i<4;i++) Px(baseX+38+i, baseY-14, 2);
+      Px(baseX+44, baseY-14, 2); Px(baseX+45, baseY-13, 2);
+      Px(baseX+34, baseY-18, 2);
+      Px(baseX+10, baseY-2, 2); Px(baseX+14, baseY-2, 2);
+      for(let k=0;k<5;k++) Px(baseX-2-k, baseY-14-k, 2);
+    }
+    ct.restore();
+  }
+
+  // Draw helpers
+  function drawGround(){
+    ct.save();
+    ct.fillStyle = isNight ? '#e8e8e8' : '#444';
+    for(const g of ground){
+      ct.fillRect(Math.round(g.x*scale), Math.round(GROUND_Y*scale), Math.round(g.w*scale), Math.round(2*scale));
+    }
+    ct.restore();
+  }
+  function drawCloud(c){
+    ct.save();
+    ct.globalAlpha = .85;
+    ct.fillStyle = isNight ? '#cbd3e6' : '#9da7ba';
+    const x = Math.round(c.x*scale), y = Math.round(c.y*scale), s = c.s*scale;
+    ct.fillRect(x-8*s, y-2*s, 16*s, 4*s);
+    ct.fillRect(x-16*s, y, 32*s, 3*s);
+    ct.restore();
+  }
+  function drawCactus(o){
+    ct.save();
+    ct.fillStyle = isNight ? '#e8e8e8' : '#111';
+    const x = Math.round(o.x*scale), y = Math.round((o.y - o.h)*scale);
+    ct.fillRect(x+4, y, 12, o.h*scale);
+    if (o.variant>0){ ct.fillRect(x, y+o.h*scale*0.4, 8, 10); }
+    if (o.variant>1){ ct.fillRect(x+16, y+o.h*scale*0.6, 8, 10); }
+    ct.restore();
+  }
+  function drawBird(o){
+    ct.save();
+    ct.fillStyle = isNight ? '#e8e8e8' : '#111';
+    const f = ((o.t/6)|0)%2;
+    const x = Math.round(o.x*scale), y = Math.round((o.y-8)*scale);
+    if (f===0){
+      ct.fillRect(x, y, 22*scale, 2*scale);
+      ct.fillRect(x+4*scale, y+2*scale, 12*scale, 2*scale);
+      ct.fillRect(x+10*scale, y-4*scale, 2*scale, 4*scale);
+    } else {
+      ct.fillRect(x, y+2*scale, 22*scale, 2*scale);
+      ct.fillRect(x+4*scale, y, 12*scale, 2*scale);
+      ct.fillRect(x+10*scale, y+2*scale, 2*scale, 4*scale);
+    }
+    ct.restore();
+  }
+
+  // Input
+  const keys = {};
+  addEventListener('keydown', e=>{
+    if (['ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault();
+    keys[e.code] = true;
+    if (!validName(playerName)) return;
+    if (state===STATE.WAIT && (e.code==='Space'||e.code==='ArrowUp')) startGame();
+    if (state===STATE.DEAD && (e.code==='Space'||e.code==='ArrowUp')) startGame();
+  }, {passive:false});
+  addEventListener('keyup', e=> keys[e.code]=false, {passive:true});
+
+  let touchDuck=false;
+  cv.addEventListener('pointerdown', e=>{
+    if (!validName(playerName)) { nameOL.style.display='flex'; return; }
+    const r = cv.getBoundingClientRect(), y = e.clientY-r.top;
+    if (state===STATE.WAIT || state===STATE.DEAD){ startGame(); return; }
+    if (y > r.height*0.55) touchDuck = true; else jump();
+  }, {passive:true});
+  addEventListener('pointerup', ()=> touchDuck=false, {passive:true});
+
+  // HUD
+  function updateHUD(){ scEl.textContent = score.toString().padStart(5,'0'); hiEl.textContent = `HI ${HI.toString().padStart(5,'0')}`; }
+
+  // World reset
+  function seedWorld(){
+    clouds.length = 0; ground.length = 0; obs.length = 0;
+    for(let x=0;x<1000;x+=24){ ground.push({x, w:24}); }
+    for(let i=0;i<3;i++){ clouds.push({x: Math.random()*960, y: 30+Math.random()*80, s: .8+.5*Math.random(), v: .2+.15*Math.random()}); }
+    player.x = 72; player.vy=0; player.duck=false; player.onGround=true; player.anim=0;
+    player.y = GROUND_Y - player.h;
+  }
+  function resetWorld(){
+    speed = SPEED_START; dist = 0; score = 0; lastHundreds = 0;
+    isNight = false; nightFade = 0;
+    gapLeft = 220; birdCooldown = 300;
+    seedWorld();
+    updateHUD();
+  }
+
+  // Leaderboard
+  async function saveScore(s){
+    if (!validName(playerName)) return;
+    try{
+      await fetch(API_BASE + "/api/score", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: playerName, score: s })
+      });
+    }catch(_e){}
+  }
+  async function loadBoard(){
+    try{
+      const r = await fetch(API_BASE + "/api/leaderboard?limit=10");
+      const j = await r.json();
+      if (!j.ok) return;
+      const data = j.data || [];
+      const frag = document.createDocumentFragment();
+      lbEl.innerHTML = "";
+      data.forEach((row, i) => {
+        const li = document.createElement("li");
+        if (row.name === playerName) li.classList.add("me");
+        li.innerHTML = `
+          <div class="rank">${String(i+1).padStart(2,"0")}</div>
+          <div class="pname">${escapeHtml(row.name)}</div>
+          <div class="pscore">${String(row.score).padStart(5,"0")}</div>
+        `;
+        frag.appendChild(li);
+      });
+      lbEl.appendChild(frag);
+    }catch(_e){}
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  loadBoard();
+  setInterval(loadBoard, 5000);
+
+  // Score autosave every 50 pts
+  let lastSaved = 0;
+  function maybeSave(){
+    if (score >= lastSaved + 50){
+      lastSaved = score - (score % 50);
+      saveScore(score);
+    }
+  }
+
+  // Start and loop
+  function startGame(){ state=STATE.PLAY; resetWorld(); beep(780,.06,.03); ol.style.display='none'; }
+  function jump(){ if (player.onGround){ player.vy = JUMP_VY; player.onGround=false; beep(740,.06,.035); } }
+
+  // Seed once so the WAIT screen is not blank
+  seedWorld();
+  state = STATE.WAIT;
+  ol.style.display = validName(playerName) ? 'flex' : 'none';
+  msg.textContent = 'Tap or press Space to start';
+
+  let last = 0;
+  function loop(ts){
+    requestAnimationFrame(loop);
+    if (!last) last = ts;
+    const dt = Math.min(32, ts-last); last = ts;
+    const dtt = dt / (1000/60);
+
+    ct.clearRect(0,0,cv.width,cv.height);
+
+    nightFade += ((isNight?1:0) - nightFade) * 0.06;
+    if (nightFade>0.02) document.body.classList.add('night'); else document.body.classList.remove('night');
+
+    if (state===STATE.WAIT){
+      drawGround(); clouds.forEach(drawCloud); drawPeacock(player);
+      return;
+    }
+
+    if (state===STATE.PLAY){
+      const prevScore = score;
+      speed = Math.min(SPEED_MAX, speed + 0.0010 * dtt);
+      dist += speed * dtt;
+      score = Math.floor(dist / 5);
+      if ((score/ SCORE_PING | 0) > lastHundreds){ lastHundreds = (score / SCORE_PING) | 0; beep(1200,.06,.03); }
+      if (score && score % NIGHT_EVERY === 0 && score!==prevScore){ isNight = !isNight; }
+
+      if (Math.random()<0.02*dtt) clouds.push({x:960+Math.random()*160,y:30+Math.random()*110,s:.8+.6*Math.random(),v:.2+.15*Math.random()});
+      for(let i=clouds.length-1;i>=0;i--){ clouds[i].x -= clouds[i].v * speed * 0.45 * dtt; if (clouds[i].x<-60) clouds.splice(i,1); }
+
+      for(const g of ground) g.x -= speed * dtt;
+      while (ground.length && ground[0].x + ground[0].w < 0){
+        const last = ground[ground.length-1];
+        ground.shift(); ground.push({x:last.x+last.w, w:last.w});
+      }
+
+      gapLeft -= speed * dtt;
+      birdCooldown -= speed * dtt;
+      if (gapLeft <= 0){
+        if (score>250 && Math.random()<0.22 && birdCooldown<=0){
+          const lane = [GROUND_Y-18, GROUND_Y-36, GROUND_Y-54][(Math.random()*3)|0];
+          obs.push({type:'bird', x: 960+40, y: lane, w: 36, h: 16, t:0});
+          birdCooldown = 220 + Math.random()*220;
+          gapLeft = nextGap();
+        } else {
+          const group = 1 + ((Math.random()*100)|0)%3;
+          const w = 18*group + 6*(group-1);
+          obs.push({type:'cactus', x: 960+20, y: GROUND_Y, w, h: 44 + (Math.random()<.35 ? 10 : 0), variant: (Math.random()*3)|0});
+          gapLeft = nextGap();
+        }
+      }
+
+      for (let i=obs.length-1;i>=0;i--){
+        const o = obs[i];
+        o.x -= speed * dtt;
+        if (o.type==='bird') o.t += dtt;
+        if (o.x + o.w < -10) { obs.splice(i,1); continue; }
+        if (aabb(player.x, player.y, player.w, player.h, o.x, o.y - o.h, o.w, o.h)){
+          state = STATE.DEAD; setHI(score); saveScore(score); beep(220,.22,.05);
+          ol.style.display='flex'; msg.textContent='Game Over. Tap or Space to retry';
+        }
+      }
+
+      const wantDuck = keys['ArrowDown'] || touchDuck;
+      player.duck = wantDuck && player.onGround;
+      if ((keys['Space']||keys['ArrowUp']) && player.onGround) jump();
+      if (!player.onGround && wantDuck) player.vy += DROP_ACCEL * dtt;
+
+      player.vy += GRAVITY * dtt;
+      player.y += player.vy * dtt;
+      if (player.y >= GROUND_Y - player.h){ player.y = GROUND_Y - player.h; player.vy=0; player.onGround=true; } else player.onGround=false;
+
+      if (player.onGround) player.anim += (player.duck?0.25:0.35) * dtt;
+
+      updateHUD();
+      maybeSave();
+    }
+
+    clouds.forEach(drawCloud);
+    drawGround();
+    for (const o of obs) (o.type==='cactus') ? drawCactus(o) : drawBird(o);
+    drawPeacock(player);
+  }
+  requestAnimationFrame(loop);
+
+  function aabb(ax,ay,aw,ah,bx,by,bw,bh){
+    return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by;
+  }
+})();
+</script>
+</body>
+</html>
+
